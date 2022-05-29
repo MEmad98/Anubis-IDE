@@ -8,6 +8,7 @@ import glob
 import serial
 
 import Python_Coloring
+import CSharp_Coloring
 from PyQt5 import QtCore
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import *
@@ -69,6 +70,7 @@ class Signal(QObject):
 # Making text editor as A global variable (to solve the issue of being local to (self) in widget class)
 text = QTextEdit
 text2 = QTextEdit
+language = "Python"
 
 #
 #
@@ -114,9 +116,10 @@ class text_widget(QWidget):
 #
 class Widget(QWidget):
 
-    def __init__(self):
+    def __init__(self, ui):
         super().__init__()
         self.initUI()
+        self.ui = ui
 
     def initUI(self):
 
@@ -185,9 +188,14 @@ class Widget(QWidget):
     # defining a new Slot (takes string) to save the text inside the first text editor
     @pyqtSlot(str)
     def Saving(s):
-        with open('main.py', 'w') as f:
-            TEXT = text.toPlainText()
-            f.write(TEXT)
+        if language == "Python":
+            with open('main.py', 'w') as f:
+                TEXT = text.toPlainText()
+                f.write(TEXT)
+        else:
+            with open('main.cs', 'w') as f:
+                TEXT = text.toPlainText()
+                f.write(TEXT)
 
     # defining a new Slot (takes string) to set the string to the text editor
     @pyqtSlot(str)
@@ -199,6 +207,12 @@ class Widget(QWidget):
 
         nn = self.sender().model().filePath(index)
         nn = tuple([nn])
+
+        fileExtension = nn[0].split(".")[1]
+        if fileExtension == "py":
+            UI.python_analyzer(self.ui)
+        else:
+            UI.csharp_analyzer(self.ui)
 
         if nn[0]:
             f = open(nn[0],'r')
@@ -260,6 +274,7 @@ class UI(QMainWindow):
         filemenu = menu.addMenu('File')
         Port = menu.addMenu('Port')
         Run = menu.addMenu('Run')
+        self.language_menu = menu.addMenu('Language')
 
         # As any PC or laptop have many ports, so I need to list them to the User
         # so I made (Port_Action) to add the Ports got from (serial_ports()) function
@@ -299,6 +314,13 @@ class UI(QMainWindow):
         filemenu.addAction(Close_Action)
         filemenu.addAction(Open_Action)
 
+        python_action = QAction('Python', self)
+        python_action.triggered.connect(self.python_analyzer)
+        csharp_action = QAction('C#', self)
+        csharp_action.triggered.connect(self.csharp_analyzer)
+
+        self.language_menu.addAction(python_action)
+        self.language_menu.addAction(csharp_action)
 
         # Seting the window Geometry
         self.setGeometry(200, 150, 600, 500)
@@ -306,7 +328,7 @@ class UI(QMainWindow):
         self.setWindowIcon(QtGui.QIcon('Anubis.png'))
         
 
-        widget = Widget()
+        widget = Widget(self)
 
         self.setCentralWidget(widget)
         self.show()
@@ -333,23 +355,33 @@ class UI(QMainWindow):
         self.portNo = action.text()
         self.port_flag = 0
 
-
-
     # I made this function to save the code into a file
     def save(self):
         self.b.reading.emit("name")
 
-
     # I made this function to open a file and exhibits it to the user in a text editor
     def open(self):
         file_name = QFileDialog.getOpenFileName(self,'Open File','/home')
-
+        fileExtension = file_name[0].split(".")[1]
+        if fileExtension == "py":
+            self.python_analyzer()
+        else:
+            self.csharp_analyzer()
         if file_name[0]:
             f = open(file_name[0],'r')
             with f:
                 data = f.read()
             self.Open_Signal.reading.emit(data)
 
+    def python_analyzer(self):
+        global language
+        language = "Python"
+        Python_Coloring.PythonHighlighter(text)
+
+    def csharp_analyzer(self):
+        global language
+        language = "C#"
+        CSharp_Coloring.CSharpHighlighter(text)
 
 #
 #
